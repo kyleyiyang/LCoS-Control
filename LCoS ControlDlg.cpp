@@ -148,6 +148,8 @@ BEGIN_MESSAGE_MAP(CLCoSControlDlg, CDialogEx)
 	ON_EN_CHANGE(IDC_EDIT_n_loops, &CLCoSControlDlg::OnEnChangeEditnloops)
 	ON_EN_UPDATE(IDC_EDIT_n_loops, &CLCoSControlDlg::OnEnUpdateEditnloops)
 	ON_BN_CLICKED(IDC_BUTTON_stop, &CLCoSControlDlg::OnBnClickedButtonstop)
+	ON_BN_CLICKED(1026, &CLCoSControlDlg::OnBnClickedRadio1lampon)
+	ON_BN_CLICKED(1027, &CLCoSControlDlg::OnBnClickedRadio2LampOff)
 END_MESSAGE_MAP()
 
 
@@ -571,4 +573,96 @@ void CLCoSControlDlg::OnBnClickedButtonstop()
 
 	is_looping = false;
 	m_loop_start.EnableWindow(TRUE);
+}
+
+// RS232
+bool CLCoSControlDlg::WriteComPort(CString PortSpecifier, CString data) {
+	DCB dcb;  DWORD byteswritten;
+
+	//HANDLE hPort = CreateFile(PortSpecifier, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+	HANDLE hPort = CreateFile(PortSpecifier, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+	//HANDLE hPort = CreateFile(L"COM1", GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	
+	if (hPort == INVALID_HANDLE_VALUE) {
+		AfxMessageBox(L"error opening port");
+		return false;
+	}
+
+	CString strMessage("Comm State Invalid");
+	DCB serialParams = { 0 };
+	serialParams.DCBlength = sizeof(serialParams);
+	if (!GetCommState(hPort, &dcb))
+	//if (!GetCommState(hPort, &serialParams))
+		strMessage.Format(_T("Failed to Get Comm State Reason: %d", GetLastError()));
+		AfxMessageBox(strMessage);
+		return false;
+
+	dcb.BaudRate = CBR_9600;  //9600 Baud  
+	dcb.ByteSize = 8;   //8 data bits  
+	dcb.Parity = NOPARITY;  //no parity  
+	dcb.StopBits = ONESTOPBIT;  //1 stop 
+
+	if (!SetCommState(hPort, &dcb))   
+		strMessage.Format(_T("Failed to Set Comm State Reason: %d", GetLastError()));
+		AfxMessageBox(strMessage);
+		return false;
+
+	bool retVal = WriteFile(hPort, data, 1, &byteswritten, NULL);  
+	CloseHandle(hPort);   //close the handle  
+	return retVal; 
+}
+
+int CLCoSControlDlg::ReadByte(CString PortSpecifier) {
+	DCB dcb;  int retVal;  BYTE Byte;  DWORD dwBytesTransferred;  DWORD dwCommModemStatus;
+
+	HANDLE hPort = CreateFile(PortSpecifier, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
+	if (hPort == INVALID_HANDLE_VALUE) {
+		AfxMessageBox(L"error opening port");
+		return false;
+	}
+
+	CString strMessage("Comm State Invalid");
+	if (!GetCommState(hPort, &dcb))   
+		strMessage.Format(_T("Failed to Get Comm State Reason: %d", GetLastError()));
+		AfxMessageBox(strMessage);
+		return 0x100;
+
+	dcb.BaudRate = CBR_9600;  //9600 Baud  
+	dcb.ByteSize = 8;   //8 data bits  
+	dcb.Parity = NOPARITY;  //no parity  
+	dcb.StopBits = ONESTOPBIT;  //1 stop 
+
+	if (!SetCommState(hPort, &dcb))   
+		strMessage.Format(_T("Failed to Set Comm State Reason: %d", GetLastError()));
+		AfxMessageBox(strMessage);
+		return 0x100;
+
+	SetCommMask(hPort, EV_RXCHAR | EV_ERR); //receive character event   
+	WaitCommEvent (hPort, &dwCommModemStatus, 0); //wait for character 
+
+	if (dwCommModemStatus & EV_RXCHAR)    
+		ReadFile(hPort, &Byte, 1, &dwBytesTransferred, 0);  //read 1  
+	else if (dwCommModemStatus & EV_ERR)   
+		retVal = 0x101;  
+	retVal = Byte;  
+	CloseHandle(hPort);  
+	return retVal; 
+} 
+
+
+
+
+
+void CLCoSControlDlg::OnBnClickedRadio1lampon()
+{
+	// TODO: Add your control notification handler code here
+	WriteComPort(L"\\\\.\\COM1", L"STOP");
+	//ReadByte(L"\\\\.\\COM1");
+}
+
+
+void CLCoSControlDlg::OnBnClickedRadio2LampOff()
+{
+	// TODO: Add your control notification handler code here
+	WriteComPort(L"\\\\.\\COM1", L"STOP");
 }
