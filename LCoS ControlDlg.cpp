@@ -650,16 +650,29 @@ int CLCoSControlDlg::ReadByte(CString PortSpecifier) {
 		return 0x100;
 	}
 	// Set timeouts
-	/*COMMTIMEOUTS timeout = { 0 };
+	COMMTIMEOUTS timeout = { 0 };
 	timeout.ReadIntervalTimeout = 50;
 	timeout.ReadTotalTimeoutConstant = 50;
 	timeout.ReadTotalTimeoutMultiplier = 50;
 	timeout.WriteTotalTimeoutConstant = 50;
 	timeout.WriteTotalTimeoutMultiplier = 10;
-	SetCommTimeouts(hPort, &timeout);*/
+	SetCommTimeouts(hPort, &timeout);
 
-	SetCommMask(hPort, EV_RXCHAR | EV_ERR); //receive character event   
-	WaitCommEvent (hPort, &dwCommModemStatus, 0); //wait for character 
+	if (SetCommMask(hPort, EV_RXCHAR | EV_ERR)) //receive character event 
+	{
+		AfxMessageBox(L"Succeeded Setting Comm Mask");
+	}
+	else {
+		AfxMessageBox(L"Failed Setting Comm Mask");
+	}
+
+	if (WaitCommEvent(hPort, &dwCommModemStatus, 0)) //wait for character 
+	{
+		AfxMessageBox(L"Succeeded Waiting Comm Event");
+	}
+	else {
+		AfxMessageBox(L"Failed Waiting Comm Event");
+	}
 
 	if (dwCommModemStatus & EV_RXCHAR) {
 		//ReadFile(hPort, &Byte, 1, &dwBytesTransferred, 0);  //read 1  
@@ -684,7 +697,8 @@ void CLCoSControlDlg::OnBnClickedRadio1lampon()
 {
 	// TODO: Add your control notification handler code here
 	//m_lamp_power.SetWindowText(std::to_wstring(ReadByte(L"\\\\.\\COM1")).c_str());
-	WriteComPort(L"\\\\.\\COM1", L"START");
+	//WriteComPort(L"\\\\.\\COM1", L"START");
+	WriteComPort(L"\\\\.\\COM1", L"RS232:BAUd?");
 	m_lamp_on.EnableWindow(FALSE);
 	m_lamp_off.EnableWindow(TRUE);
 	m_lamp_off.SetCheck(0);
@@ -694,8 +708,10 @@ void CLCoSControlDlg::OnBnClickedRadio1lampon()
 void CLCoSControlDlg::OnBnClickedRadio2LampOff()
 {
 	// TODO: Add your control notification handler code here
-	WriteComPort(L"\\\\.\\COM1", L"STOP");
+	//WriteComPort(L"\\\\.\\COM1", L"STOP");
+	
 	m_lamp_off.EnableWindow(FALSE);
 	m_lamp_on.EnableWindow(TRUE);
 	m_lamp_on.SetCheck(0);
+	m_listBox.AddString(std::to_wstring(ReadByte(L"\\\\.\\COM1")).c_str());
 }
