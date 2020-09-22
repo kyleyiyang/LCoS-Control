@@ -592,16 +592,16 @@ bool CLCoSControlDlg::WriteComPort(CString PortSpecifier, CString data) {
 		return false;
 	}
 
-	CString strMessage("Comm State Invalid");
+	/*CString strMessage("Comm State Invalid");
 	DCB serialParams = { 0 };
-	serialParams.DCBlength = sizeof(serialParams);
+	serialParams.DCBlength = sizeof(serialParams);*/
 	if (GetCommState(hPort, &dcb)) { AfxMessageBox(L"Succeeded to Get Comm State!"); } 
 	else {
 		AfxMessageBox(L"Failed to Get Comm State");
 		return false;
 	}
-	dcb.BaudRate = 9600;
-	//dcb.BaudRate = CBR_9600;  //9600 Baud  
+	//dcb.BaudRate = 9600;
+	dcb.BaudRate = CBR_9600;  //9600 Baud  
 	dcb.ByteSize = 8;   //8 data bits  
 	dcb.Parity = NOPARITY;  //no parity  
 	dcb.StopBits = ONESTOPBIT;  //1 stop 
@@ -611,24 +611,70 @@ bool CLCoSControlDlg::WriteComPort(CString PortSpecifier, CString data) {
 		AfxMessageBox(L"Failed to Set Comm State");
 		return false;
 	}
-	/*LPWSTR instr = (LPWSTR)(LPCWSTR)data;
+	LPWSTR instr = (LPWSTR)(LPCWSTR)data;
 	const int MAX_OUTSTR_SIZE = 200;
 	char outstr[MAX_OUTSTR_SIZE];
-	int utf8_len = WideCharToMultiByte(CP_UTF8, 0, instr, -1, outstr, MAX_OUTSTR_SIZE, NULL, NULL);*/
-	//bool retVal = WriteFile(hPort, data, utf8_len, &byteswritten, NULL);
-	bool retVal = WriteFile(hPort, "RS232:BAUd?", 12, &byteswritten, NULL);
+	int utf8_len = WideCharToMultiByte(CP_UTF8, 0, instr, -1, outstr, MAX_OUTSTR_SIZE, NULL, NULL);
+	DWORD temp;
+	COMSTAT ComState;
+	ClearCommError(hPort, &temp, &ComState);
+	bool retVal;
+	if (!temp) {
+		AfxMessageBox(L"No Err on port to write file");
+		retVal = WriteFile(hPort, data, utf8_len, &byteswritten, NULL);
+	}
+	else {
+		AfxMessageBox(L"Err on port writing file");
+	}
+	//bool retVal = WriteFile(hPort, "RS232:BAUd?", sizeof("RS232:BAUd?"), &byteswritten, NULL);
+	if (utf8_len != byteswritten) {
+		AfxMessageBox(L"String written does not match!");
+	}
+	else {
+		AfxMessageBox(L"String written matches!");
+	}
 	if (retVal) { 
 		AfxMessageBox(L"Succeeded to Write File!"); 
-		//m_listBox.AddString(std::to_wstring(utf8_len).c_str()); 
+		m_listBox.AddString(std::to_wstring(byteswritten).c_str());
 	}
 	else { AfxMessageBox(L"Failed to Write File!"); }
 
-	/* SetCommMask(hPort, EV_RXCHAR | EV_ERR);
+	//SetCommMask(hPort, EV_RXCHAR | EV_ERR);
 	DWORD dwCommModemStatus; BYTE Byte;  DWORD dwBytesTransferred; int retVal_1;
-	WaitCommEvent(hPort, &dwCommModemStatus, 0);
+	//WaitCommEvent(hPort, &dwCommModemStatus, 0);
+	// Set timeouts
+	/*COMMTIMEOUTS timeout = { 0 };
+	timeout.ReadIntervalTimeout = 50;
+	timeout.ReadTotalTimeoutConstant = 50;
+	timeout.ReadTotalTimeoutMultiplier = 50;
+	timeout.WriteTotalTimeoutConstant = 50;
+	timeout.WriteTotalTimeoutMultiplier = 10;
+	if (SetCommTimeouts(hPort, &timeout)) {
+		AfxMessageBox(L"Succeeded Setting Timeouts");
+	}
+	else {
+		AfxMessageBox(L"Failed Setting Timeouts");
+	}*/
+
+	/*if (SetCommMask(hPort, EV_RXCHAR | EV_ERR)) //receive character event 
+	{
+		AfxMessageBox(L"Succeeded Setting Comm Mask");
+	}
+	else {
+		AfxMessageBox(L"Failed Setting Comm Mask");
+	}
+
+	//if (WaitCommEvent(hPort, &dwCommModemStatus, 0)) //wait for character 
+	if (WaitCommEvent(hPort, &dwCommModemStatus, NULL))
+	{
+		AfxMessageBox(L"Succeeded Waiting Comm Event");
+	}
+	else {
+		AfxMessageBox(L"Failed Waiting Comm Event");
+	}
 	if (dwCommModemStatus & EV_RXCHAR) {
 		//ReadFile(hPort, &Byte, 1, &dwBytesTransferred, 0);  //read 1  
-		if (ReadFile(hPort, &Byte, 5, &dwBytesTransferred, 0)) {
+		if (ReadFile(hPort, &Byte, sizeof(Byte), &dwBytesTransferred, 0)) {
 			retVal_1 = Byte; AfxMessageBox(L"Succeeded Reading File");
 		}
 		else {
@@ -638,12 +684,27 @@ bool CLCoSControlDlg::WriteComPort(CString PortSpecifier, CString data) {
 	else if (dwCommModemStatus & EV_ERR)
 		retVal_1 = 0x101;
 		AfxMessageBox(L"EV_ERR");
-	m_listBox.AddString(std::to_wstring(retVal_1).c_str());*/
+	m_listBox.AddString(std::to_wstring(retVal_1).c_str()); */
 
-	/*BYTE Byte; DWORD dwBytesTransferred;
-	if (ReadFile(hPort, &Byte, 17, &dwBytesTransferred, 0)) {
-		m_listBox.AddString(std::to_wstring(Byte).c_str());
-	}*/
+	//BYTE Byte; //DWORD dwBytesTransferred;
+	//DWORD temp;
+	//COMSTAT ComState;
+	ClearCommError(hPort, &temp, &ComState);
+	if (!temp) {
+		AfxMessageBox(L"No Err reading file");
+		if (ReadFile(hPort, &Byte, sizeof(Byte), &dwBytesTransferred, 0)) {
+			m_listBox.AddString(std::to_wstring(Byte).c_str());
+			m_listBox.AddString(std::to_wstring(dwBytesTransferred).c_str());
+		}
+	} else {
+		AfxMessageBox(L"Err reading file ");
+	}
+	if (dwBytesTransferred == 17) {
+		AfxMessageBox(L"Transfered Bytes");
+	}
+	else {
+		AfxMessageBox(L"Not Transfered Bytes");
+	}
 
 	if (CloseHandle(hPort)) {   //close the handle  
 		AfxMessageBox(L"Closed handle!");
@@ -684,7 +745,12 @@ int CLCoSControlDlg::ReadByte(CString PortSpecifier) {
 	timeout.ReadTotalTimeoutMultiplier = 50;
 	timeout.WriteTotalTimeoutConstant = 50;
 	timeout.WriteTotalTimeoutMultiplier = 10;
-	SetCommTimeouts(hPort, &timeout);
+	if (SetCommTimeouts(hPort, &timeout)) {
+		AfxMessageBox(L"Succeeded Setting Timeouts");
+	}
+	else {
+		AfxMessageBox(L"Failed Setting Timeouts");
+	}
 
 	if (SetCommMask(hPort, EV_RXCHAR | EV_ERR)) //receive character event 
 	{
@@ -695,7 +761,7 @@ int CLCoSControlDlg::ReadByte(CString PortSpecifier) {
 	}
 
 	//if (WaitCommEvent(hPort, &dwCommModemStatus, 0)) //wait for character 
-	if (WaitCommEvent(hPort, &dwCommModemStatus, NULL))
+	/*if (WaitCommEvent(hPort, &dwCommModemStatus, NULL))
 	{
 		AfxMessageBox(L"Succeeded Waiting Comm Event");
 	}
@@ -712,8 +778,22 @@ int CLCoSControlDlg::ReadByte(CString PortSpecifier) {
 	}
 	else if (dwCommModemStatus & EV_ERR)   
 		retVal = 0x101;
-		AfxMessageBox(L"EV_ERR");
+		AfxMessageBox(L"EV_ERR");*/
 	//retVal = Byte;
+	if (ReadFile(hPort, &Byte, sizeof(Byte), &dwBytesTransferred, 0)) {
+		retVal = Byte; AfxMessageBox(L"Succeeded Reading File");
+	}
+	else {
+		AfxMessageBox(L"Failed to Read File"); retVal = Byte;
+	}
+	if (dwBytesTransferred == 17) {
+		AfxMessageBox(L"Transfered Bytes");
+	}
+	else {
+		AfxMessageBox(L"Not Transfered Bytes");
+	}
+
+	m_listBox.AddString(std::to_wstring(retVal).c_str());
 	CloseHandle(hPort);  
 	return retVal; 
 } 
@@ -742,5 +822,6 @@ void CLCoSControlDlg::OnBnClickedRadio2LampOff()
 	m_lamp_off.EnableWindow(FALSE);
 	m_lamp_on.EnableWindow(TRUE);
 	m_lamp_on.SetCheck(0);
-	m_listBox.AddString(std::to_wstring(ReadByte(L"\\\\.\\COM1")).c_str());
+	ReadByte(L"\\\\.\\COM1");
+	//m_listBox.AddString(std::to_wstring(ReadByte(L"\\\\.\\COM1")).c_str());
 }
